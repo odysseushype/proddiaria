@@ -1,8 +1,0 @@
-streamlit==1.29.0
-pandas==2.1.0
-numpy==1.25.2
-plotly==5.18.0
-streamlit-aggrid==0.3.4
-fpdf==1.7.2
-reportlab==3.6.12
-Pillow==10.0.0
