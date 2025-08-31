@@ -7,6 +7,9 @@ import os
 import plotly.express as px
 from io import BytesIO
 
+# Caminho do arquivo compartilhado no ambiente do deploy
+SHARED_UPLOAD_PATH = "shared_buffer_data.xlsx"
+
 # Inicializar o buffer no session_state
 if "buffer" not in st.session_state:
     st.session_state["buffer"] = None
@@ -90,68 +93,31 @@ if source == "Upload (Excel)":
     reg_file = st.sidebar.file_uploader("Upload: arquivo de registros (Excel)", type=["xls", "xlsx"])
     if reg_file is not None:
         try:
-            # Armazenar o arquivo no buffer
+            # 1. Salvar o arquivo enviado no local compartilhado
+            with open(SHARED_UPLOAD_PATH, "wb") as f:
+                f.write(reg_file.getbuffer())
+            
+            # 2. Carregar o arquivo no DataFrame atual
+            df_user = pd.read_excel(SHARED_UPLOAD_PATH, engine="openpyxl")
+            st.sidebar.success("✅ Arquivo carregado e disponível para todos os usuários.")
+            
+            # 3. Armazenar na sessão atual também (opcional)
             st.session_state["buffer"] = BytesIO(reg_file.read())
-            df_user = pd.read_excel(st.session_state["buffer"])  # Ler dados do buffer
-            st.sidebar.success("Arquivo de registros carregado e armazenado em buffer.")
             
-            # Combinar dados iniciais com os dados do usuário
-            if df is not None and not df.empty:
-                df = pd.concat([df, df_user], ignore_index=True)
-                st.sidebar.success("Dados iniciais e do usuário combinados com sucesso.")
-            else:
-                df = df_user
+            # Atribuir ao DataFrame principal
+            df = df_user
         except Exception as e:
-            st.sidebar.error(f"Falha ao ler registros: {e}")
-    elif st.session_state["buffer"] is not None:
-        try:
-            # Reutilizar o buffer existente
-            df_user = pd.read_excel(st.session_state["buffer"])
-            st.sidebar.success("Dados carregados do buffer.")
-            
-            # Combinar dados iniciais com os dados do usuário
-            if df is not None and not df.empty:
-                df = pd.concat([df, df_user], ignore_index=True)
-                st.sidebar.success("Dados iniciais e do usuário combinados com sucesso.")
-            else:
-                df = df_user
-        except Exception as e:
-            st.sidebar.error(f"Falha ao reutilizar buffer: {e}")
-
-# Carregar o arquivo salvo automaticamente nos demais acessos
-elif os.path.exists(deploy_file_path):
+            st.sidebar.error(f"Falha ao processar arquivo: {str(e)}")
+# Verificar se existe arquivo compartilhado
+elif os.path.exists(SHARED_UPLOAD_PATH):
     try:
-        df = pd.read_excel(deploy_file_path)
-        st.sidebar.success("Arquivo de registros carregado automaticamente.")
+        # Carregar dados do arquivo compartilhado
+        df = pd.read_excel(SHARED_UPLOAD_PATH, engine="openpyxl")
+        st.sidebar.info("📄 Usando dados compartilhados do último upload.")
     except Exception as e:
-        st.sidebar.error(f"Falha ao carregar arquivo salvo: {e}")
-
-elif source == "Banco de Dados (SQL)":
-    conn_str = st.sidebar.text_input("Connection string (SQLAlchemy)", value=st.secrets.get("db_conn", ""))
-    table_regs = st.sidebar.text_input("Tabela de registros (ou query)", value=st.secrets.get("table_regs", "registros"))
-    if st.sidebar.button("Carregar do DB"):
-        try:
-            from sqlalchemy import create_engine
-            engine = create_engine(conn_str)
-            if table_regs.strip().lower().startswith("select"):
-                df = pd.read_sql_query(table_regs, engine)
-            else:
-                df = pd.read_sql_table(table_regs, engine)
-            st.sidebar.success("Dados de registros carregados do banco")
-        except Exception as e:
-            st.sidebar.error(f"Erro ao conectar/ler DB: {e}")
-
+        st.sidebar.error(f"Erro ao carregar arquivo compartilhado: {str(e)}")
 else:
-    registros_path = st.sidebar.text_input("Caminho arquivo registros (Excel)",
-                                           value=os.path.join(os.getcwd(), "registros.xlsx"))
-    if os.path.exists(registros_path):
-        try:
-            df = pd.read_excel(registros_path)
-            st.sidebar.success("Arquivo de registros (local) carregado")
-        except Exception as e:
-            st.sidebar.error(f"Falha ao ler registros locais: {e}")
-    else:
-        st.sidebar.info("Arquivo de registros não encontrado no caminho informado.")
+    st.sidebar.warning("⚠️ Nenhum arquivo de dados compartilhado disponível. Faça o upload.")
 
 if os.path.exists(vel_path):
     try:
@@ -969,7 +935,6 @@ with tab1:
             st.plotly_chart(fig_ef_centro_turno, use_container_width=True)
         except Exception as e:
             st.error(f"Erro ao gerar gráfico de Eficiência por Centro e Turno: {e}")
-            st.error(f"Erro ao gerar gráfico de Produção por Centro e Turno: {e}")
 
         # Gráfico: Eficiência por Centro e Turno
         st.markdown("### 🏆 Eficiência por Centro e Turno")
