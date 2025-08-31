@@ -738,7 +738,7 @@ if "resumo_turno" in locals() and not resumo_turno.empty:
     grid_options = gb.build()
 
     # Exibir tabela interativa com largura ajustada
-    AgGrid(sumario_centros, gridOptions=grid_options, fit_columns_on_grid_load=False)
+    st.dataframe(sumario_centros, use_container_width=True)
 else:
     st.info("Nenhum dado disponível para o sumário dos centros.")
 
