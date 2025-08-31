@@ -77,7 +77,7 @@ source = st.sidebar.selectbox("Fonte de dados", ["Upload (Excel)", "Banco de Dad
 
 df = None
 vel = None
-vel_path = pd.read_excel("static/Velocidade.xlsx")
+vel_path = os.path.join("static", "Velocidade.xlsx")
 
 
 if source == "Upload (Excel)":
@@ -1156,5 +1156,6 @@ if "prod" in locals() and not prod.empty and "Descrição Item" in prod.columns:
 else:
     # Criar um DataFrame vazio como fallback
     itens_por_centro_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "Descrição Item"])
+
 
 
