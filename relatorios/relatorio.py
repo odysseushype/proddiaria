@@ -77,7 +77,7 @@ source = st.sidebar.selectbox("Fonte de dados", ["Upload (Excel)", "Banco de Dad
 
 df = None
 vel = None
-vel_path = os.path.join(os.getcwd(), "static", "Velocidade.xlsx")
+vel_path = os.path.abspath("static/Velocidade.xlsx")
 
 if source == "Upload (Excel)":
     reg_file = st.sidebar.file_uploader("Upload: arquivo de registros (Excel)", type=["xls", "xlsx"])
@@ -855,7 +855,7 @@ st.title("🏭 Plot Área")
 
 
 # ===== Abas para Gráficos e Detalhes =====
-tab1, tab2 = st.tabs(["📊 Gráficos", "por Centro"])
+tab1, tab2 = st.tabs(["📊 Gráficos", "Em desenvolvimento"])
 
 # ===== Gráficos =====
 with tab1:
