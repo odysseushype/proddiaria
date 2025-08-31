@@ -5,12 +5,6 @@ import numpy as np
 from datetime import datetime, timedelta
 import os
 import plotly.express as px
-from st_aggrid import AgGrid, GridOptionsBuilder
-from fpdf import FPDF
-import base64
-import tempfile
-from datetime import datetime
-import os
 from io import BytesIO
 import plotly.io as pio
 from PIL import Image
@@ -725,19 +719,7 @@ if "resumo_turno" in locals() and not resumo_turno.empty:
     # Renomear colunas para melhor leitura
     sumario_centros = pretty_cols(sumario_centros)
 
-    # Configurar AgGrid com ajuste de largura
-    gb = GridOptionsBuilder.from_dataframe(sumario_centros)
-    gb.configure_column("Centro", header_name="Centro", cellStyle={"textAlign": "left"}, width=150)
-    gb.configure_column("Classificação", header_name="Classificação", cellStyle={"textAlign": "center"}, width=150)
-    gb.configure_column("Produzido_total", header_name="Produção Total", cellStyle={"textAlign": "right"}, width=150)
-    gb.configure_column("Paradas_total_h", header_name="Tempo Total de Paradas (h)", cellStyle={"textAlign": "right"}, width=150)
-    gb.configure_column("Ef_media", header_name="Eficiência Média", cellStyle={"textAlign": "right"}, width=150)
-    gb.configure_column("Ef_ajustada_media", header_name="Eficiência Ajustada", cellStyle={"textAlign": "right"}, width=150)
-    gb.configure_column("Maiores Paradas", header_name="Maiores Paradas", cellStyle={"textAlign": "left"}, width=400)
-
-    grid_options = gb.build()
-
-    # Exibir tabela interativa com largura ajustada
+    # Exibir tabela com largura ajustada usando st.dataframe
     st.dataframe(sumario_centros, use_container_width=True)
 else:
     st.info("Nenhum dado disponível para o sumário dos centros.")
@@ -932,6 +914,23 @@ with tab1:
             )
             st.plotly_chart(fig_prod_centro_turno, use_container_width=True)
         except Exception as e:
+            st.error(f"Erro ao gerar gráfico de Produção por Centro e Turno: {e}")
+
+        # Gráfico: Eficiência por Centro e Turno
+        st.markdown("### 🏆 Eficiência por Centro e Turno")
+        try:
+            fig_ef_centro_turno = px.bar(
+                resumo_turno,
+                x="Centro Trabalho",
+                y="Eficiencia_%",
+                color="Turno",
+                title="Eficiência por Centro e Turno",
+                labels={"Eficiencia_%": "Eficiência (%)", "Centro Trabalho": "Centro", "Turno": "Turno"},
+                barmode="stack"
+            )
+            st.plotly_chart(fig_ef_centro_turno, use_container_width=True)
+        except Exception as e:
+            st.error(f"Erro ao gerar gráfico de Eficiência por Centro e Turno: {e}")
             st.error(f"Erro ao gerar gráfico de Produção por Centro e Turno: {e}")
 
         # Gráfico: Eficiência por Centro e Turno
