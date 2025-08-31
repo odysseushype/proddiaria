@@ -79,15 +79,21 @@ df = None
 vel = None
 vel_path = os.path.join("relatorios", "static", "Velocidade.xlsx")
 
+# Caminho para salvar o arquivo enviado pela conta do deploy
+deploy_file_path = os.path.join("static", "registros.xlsx")
 
+# Upload de arquivo pelo usuário
 if source == "Upload (Excel)":
     reg_file = st.sidebar.file_uploader("Upload: arquivo de registros (Excel)", type=["xls", "xlsx"])
     if reg_file is not None:
         try:
-            # Armazenar o arquivo no buffer
-            st.session_state["buffer"] = BytesIO(reg_file.read())
-            df_user = pd.read_excel(st.session_state["buffer"])  # Ler dados do buffer
-            st.sidebar.success("Arquivo de registros carregado e armazenado em buffer.")
+            # Salvar o arquivo no disco
+            with open(deploy_file_path, "wb") as f:
+                f.write(reg_file.read())
+            st.sidebar.success("Arquivo de registros carregado e salvo com sucesso.")
+            
+            # Carregar os dados do arquivo enviado
+            df_user = pd.read_excel(deploy_file_path)
             
             # Combinar dados iniciais com os dados do usuário
             if df is not None and not df.empty:
@@ -97,20 +103,14 @@ if source == "Upload (Excel)":
                 df = df_user
         except Exception as e:
             st.sidebar.error(f"Falha ao ler registros: {e}")
-    elif st.session_state["buffer"] is not None:
-        try:
-            # Reutilizar o buffer existente
-            df_user = pd.read_excel(st.session_state["buffer"])
-            st.sidebar.success("Dados carregados do buffer.")
-            
-            # Combinar dados iniciais com os dados do usuário
-            if df is not None and not df.empty:
-                df = pd.concat([df, df_user], ignore_index=True)
-                st.sidebar.success("Dados iniciais e do usuário combinados com sucesso.")
-            else:
-                df = df_user
-        except Exception as e:
-            st.sidebar.error(f"Falha ao reutilizar buffer: {e}")
+
+# Carregar o arquivo salvo automaticamente nos demais acessos
+elif os.path.exists(deploy_file_path):
+    try:
+        df = pd.read_excel(deploy_file_path)
+        st.sidebar.success("Arquivo de registros carregado automaticamente.")
+    except Exception as e:
+        st.sidebar.error(f"Falha ao carregar arquivo salvo: {e}")
 
 elif source == "Banco de Dados (SQL)":
     conn_str = st.sidebar.text_input("Connection string (SQLAlchemy)", value=st.secrets.get("db_conn", ""))
@@ -708,7 +708,7 @@ if "resumo_turno" in locals() and not resumo_turno.empty:
             # Agora selecionar as top 4 paradas por centro
             paradas_top4 = (
                 paradas_agrupadas
-                .groupby("Centro Trabalho")
+                .groupby("Centro Trabalho")  # Corrigir chamada do groupby
                 .apply(lambda x: x.nlargest(8, "Parada_min"))
                 .reset_index(level=0, drop=True)
                 .reset_index()
@@ -1179,5 +1179,4 @@ if "prod" in locals() and not prod.empty and "Descrição Item" in prod.columns:
 else:
     # Criar um DataFrame vazio como fallback
     itens_por_centro_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "Descrição Item"])
-
 
