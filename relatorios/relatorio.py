@@ -7,6 +7,25 @@ import os
 import plotly.express as px
 from io import BytesIO
 
+# Função para detectar dispositivos móveis
+def is_mobile():
+    """Detecta se o dispositivo é móvel baseado no User-Agent"""
+    import re
+    # Como não temos acesso direto ao User-Agent no Streamlit Cloud,
+    # usamos uma abordagem simplificada baseada na session_state
+    if 'is_mobile' in st.session_state:
+        return st.session_state['is_mobile']
+    # Valor padrão - assumir desktop
+    return False
+
+# Configuração da página - modo wide
+st.set_page_config(
+    page_title="Relatório de Produção",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="collapsed" if is_mobile() else "expanded"
+)
+
 # Caminho do arquivo compartilhado no ambiente do deploy
 SHARED_UPLOAD_PATH = "shared_buffer_data.xlsx"
 
@@ -315,7 +334,7 @@ if not df.empty:
     janela_fim = janela_ini + timedelta(days=1)
     st.caption(f"Janela ativa: {janela_ini:%d/%m/%Y %H:%M} → {janela_fim:%d/%m/%Y %H:%M}")
 
-    df = df[(df["DataHoraInicio"] < janela_fim) & (df["DataHoraFim"] > janela_ini)].copy()
+    df = df[df["DataProd"] == pd.Timestamp(data_base)].copy()
 
     df["MinEvento"] = (df["DataHoraFim"] - df["DataHoraInicio"]).dt.total_seconds().div(60).fillna(0)
 
@@ -366,9 +385,9 @@ if not df.empty:
     # Criar DataFrame com os itens produzidos por centro e turno
     if not prod.empty and "Descrição Item" in prod.columns:
         itens_por_centro_turno = (
-            prod[["Centro Trabalho", "Turno", "Descrição Item"]]
+            prod[["Centro Trabalho", "Turno", "DataProd", "Descrição Item"]]
             .drop_duplicates()
-            .groupby(["Centro Trabalho", "Turno"])
+            .groupby(["Centro Trabalho", "Turno", "DataProd"])
             ["Descrição Item"]
             .apply(list)
             .reset_index()
@@ -798,7 +817,8 @@ if "resumo_turno" in locals() and not resumo_turno.empty:
                             # Exibir itens únicos produzidos neste turno
                             itens_filtrados = itens_por_centro_turno[
                                 (itens_por_centro_turno["Centro Trabalho"] == centro) & 
-                                (itens_por_centro_turno["Turno"] == turno)
+                                (itens_por_centro_turno["Turno"] == turno) &
+                                (itens_por_centro_turno["DataProd"] == df_turno["DataProd"].iloc[0])  # Adicione esta linha
                             ]
                             
                             if not itens_filtrados.empty:
@@ -888,7 +908,7 @@ with tab1:
                 labels={"Produção Total": "Produção Total (unidades)", "Turno": "Turno"},
                 text_auto=True
             )
-            st.plotly_chart(fig_prod_turno, use_container_width=True)
+            st.plotly_chart(fig_prod_turno, use_container_width=True, key="prod_turno")
         except Exception as e:
             st.error(f"Erro ao gerar gráfico de Produção por Turno: {e}")
 
@@ -907,7 +927,7 @@ with tab1:
                 labels={"Eficiencia_media": "Eficiência Média (%)", "Turno": "Turno"},
                 text_auto=True
             )
-            st.plotly_chart(fig_ef_turno, use_container_width=True)
+            st.plotly_chart(fig_ef_turno, use_container_width=True, key="ef_turno")
         except Exception as e:
             st.error(f"Erro ao gerar gráfico de Eficiência Média por Turno: {e}")
 
@@ -923,7 +943,7 @@ with tab1:
                 labels={"Produzido": "Produção (unidades)", "Centro Trabalho": "Centro", "Turno": "Turno"},
                 barmode="stack"
             )
-            st.plotly_chart(fig_prod_centro_turno, use_container_width=True)
+            st.plotly_chart(fig_prod_centro_turno, use_container_width=True, key="prod_centro_turno")
         except Exception as e:
             st.error(f"Erro ao gerar gráfico de Produção por Centro e Turno: {e}")
 
@@ -939,23 +959,7 @@ with tab1:
                 labels={"Eficiencia_%": "Eficiência (%)", "Centro Trabalho": "Centro", "Turno": "Turno"},
                 barmode="stack"
             )
-            st.plotly_chart(fig_ef_centro_turno, use_container_width=True)
-        except Exception as e:
-            st.error(f"Erro ao gerar gráfico de Eficiência por Centro e Turno: {e}")
-
-        # Gráfico: Eficiência por Centro e Turno
-        st.markdown("### 🏆 Eficiência por Centro e Turno")
-        try:
-            fig_ef_centro_turno = px.bar(
-                resumo_turno,
-                x="Centro Trabalho",
-                y="Eficiencia_%",
-                color="Turno",
-                title="Eficiência por Centro e Turno",
-                labels={"Eficiencia_%": "Eficiência (%)", "Centro Trabalho": "Centro", "Turno": "Turno"},
-                barmode="stack"
-            )
-            st.plotly_chart(fig_ef_centro_turno, use_container_width=True)
+            st.plotly_chart(fig_ef_centro_turno, use_container_width=True, key="ef_centro_turno")
         except Exception as e:
             st.error(f"Erro ao gerar gráfico de Eficiência por Centro e Turno: {e}")
 
@@ -974,7 +978,7 @@ with tab1:
                 labels={"Paradas_total_h": "Paradas (horas)", "Turno": "Turno"},
                 text_auto=True
             )
-            st.plotly_chart(fig_paradas_turno, use_container_width=True)
+            st.plotly_chart(fig_paradas_turno, use_container_width=True, key="paradas_turno")
         except Exception as e:
             st.error(f"Erro ao gerar gráfico de Paradas por Turno: {e}")
 
@@ -1005,7 +1009,7 @@ with tab1:
                     margin=dict(l=0, r=0, t=40, b=0),
                     height=600
                 )
-                st.plotly_chart(fig_paradas_tipo, use_container_width=True)
+                st.plotly_chart(fig_paradas_tipo, use_container_width=True, key="paradas_tipo")
             except Exception as e:
                 st.error(f"Erro ao gerar gráfico de Distribuição de Paradas por Tipo: {e}")
         else:
@@ -1150,20 +1154,3 @@ with tab2:
             st.info("Nenhum dado disponível para gráficos detalhados por centro.")
     else:
         st.info("Nenhum dado disponível para gráficos detalhados.")
-
-# Criar DataFrame com os itens produzidos por centro e turno
-if "prod" in locals() and not prod.empty and "Descrição Item" in prod.columns:
-    # Criar um DataFrame que agrupa os itens por centro e turno
-    itens_por_centro_turno = (
-        prod[["Centro Trabalho", "Turno", "Descrição Item"]]
-        .drop_duplicates()
-        .groupby(["Centro Trabalho", "Turno"])
-        ["Descrição Item"]
-        .apply(list)
-        .reset_index()
-    )
-else:
-    # Criar um DataFrame vazio como fallback
-    itens_por_centro_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "Descrição Item"])
-
-
