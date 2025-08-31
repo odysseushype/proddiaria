@@ -91,10 +91,14 @@ deploy_file_path = os.path.join("static", "registros.xlsx")
 local_file_path = "registros_local.xlsx"
 
 # Upload de arquivo pelo usuário
-if source == "Upload (Excel)":
-    st.info("👇 Por favor, faça o upload do arquivo de dados abaixo 👇")
-    reg_file = st.file_uploader("Upload: arquivo de registros (Excel)", type=["xls", "xlsx"])
+
+# No início do app, após as importações
+upload_option = st.sidebar.radio("Selecione a ação:", ["Ver dados existentes", "Fazer upload de novo arquivo"])
+
+if upload_option == "Fazer upload de novo arquivo":
+    reg_file = st.sidebar.file_uploader("Upload: arquivo de registros (Excel)", type=["xls", "xlsx"], key="new_upload")
     if reg_file is not None:
+
         try:
             # 1. Salvar o arquivo enviado no local compartilhado
             with open(SHARED_UPLOAD_PATH, "wb") as f:
@@ -1161,4 +1165,5 @@ if "prod" in locals() and not prod.empty and "Descrição Item" in prod.columns:
 else:
     # Criar um DataFrame vazio como fallback
     itens_por_centro_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "Descrição Item"])
+
 
