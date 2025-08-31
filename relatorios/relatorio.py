@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 import os
 import plotly.express as px
 from io import BytesIO
-import plotly.io as pio
-from PIL import Image
 
-st.set_page_config(page_title="Painel de Produção", layout="wide")
+# Inicializar o buffer no session_state
+if "buffer" not in st.session_state:
+    st.session_state["buffer"] = None
 
 # ===== Inicializar session_state flags =====
 if "centro_sel" not in st.session_state:
@@ -77,17 +77,40 @@ source = st.sidebar.selectbox("Fonte de dados", ["Upload (Excel)", "Banco de Dad
 
 df = None
 vel = None
-vel_path = os.path.join("relatorios", "static", "Velocidade.xlsx")
+vel_path = os.path.join("static", "Velocidade.xlsx")
 
 
 if source == "Upload (Excel)":
     reg_file = st.sidebar.file_uploader("Upload: arquivo de registros (Excel)", type=["xls", "xlsx"])
     if reg_file is not None:
         try:
-            df = pd.read_excel(reg_file)
-            st.sidebar.success("Arquivo de registros carregado")
+            # Armazenar o arquivo no buffer
+            st.session_state["buffer"] = BytesIO(reg_file.read())
+            df_user = pd.read_excel(st.session_state["buffer"])  # Ler dados do buffer
+            st.sidebar.success("Arquivo de registros carregado e armazenado em buffer.")
+            
+            # Combinar dados iniciais com os dados do usuário
+            if df is not None and not df.empty:
+                df = pd.concat([df, df_user], ignore_index=True)
+                st.sidebar.success("Dados iniciais e do usuário combinados com sucesso.")
+            else:
+                df = df_user
         except Exception as e:
             st.sidebar.error(f"Falha ao ler registros: {e}")
+    elif st.session_state["buffer"] is not None:
+        try:
+            # Reutilizar o buffer existente
+            df_user = pd.read_excel(st.session_state["buffer"])
+            st.sidebar.success("Dados carregados do buffer.")
+            
+            # Combinar dados iniciais com os dados do usuário
+            if df is not None and not df.empty:
+                df = pd.concat([df, df_user], ignore_index=True)
+                st.sidebar.success("Dados iniciais e do usuário combinados com sucesso.")
+            else:
+                df = df_user
+        except Exception as e:
+            st.sidebar.error(f"Falha ao reutilizar buffer: {e}")
 
 elif source == "Banco de Dados (SQL)":
     conn_str = st.sidebar.text_input("Connection string (SQLAlchemy)", value=st.secrets.get("db_conn", ""))
@@ -1156,7 +1179,4 @@ if "prod" in locals() and not prod.empty and "Descrição Item" in prod.columns:
 else:
     # Criar um DataFrame vazio como fallback
     itens_por_centro_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "Descrição Item"])
-
-
-
 
