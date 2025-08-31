@@ -76,6 +76,8 @@ def cor_eficiencia(val):
         return 'background-color: #f8d7da;'  # vermelho claro
 
 # ----------------- Entrada -----------------
+st.title("📊 Relatório de Produção")
+
 source = st.sidebar.selectbox("Fonte de dados", ["Upload (Excel)", "Banco de Dados (SQL)", "Arquivos locais"], index=0)
 
 df = None
@@ -90,7 +92,8 @@ local_file_path = "registros_local.xlsx"
 
 # Upload de arquivo pelo usuário
 if source == "Upload (Excel)":
-    reg_file = st.sidebar.file_uploader("Upload: arquivo de registros (Excel)", type=["xls", "xlsx"])
+    st.info("👇 Por favor, faça o upload do arquivo de dados abaixo 👇")
+    reg_file = st.file_uploader("Upload: arquivo de registros (Excel)", type=["xls", "xlsx"])
     if reg_file is not None:
         try:
             # 1. Salvar o arquivo enviado no local compartilhado
@@ -99,15 +102,15 @@ if source == "Upload (Excel)":
             
             # 2. Carregar o arquivo no DataFrame atual
             df_user = pd.read_excel(SHARED_UPLOAD_PATH, engine="openpyxl")
-            st.sidebar.success("✅ Arquivo carregado e disponível para todos os usuários.")
+            st.success("✅ Arquivo carregado e disponível para todos os usuários.")
             
-            # 3. Armazenar na sessão atual também (opcional)
+            # 3. Armazenar na sessão atual também
             st.session_state["buffer"] = BytesIO(reg_file.read())
             
             # Atribuir ao DataFrame principal
             df = df_user
         except Exception as e:
-            st.sidebar.error(f"Falha ao processar arquivo: {str(e)}")
+            st.error(f"Falha ao processar arquivo: {str(e)}")
 # Verificar se existe arquivo compartilhado
 elif os.path.exists(SHARED_UPLOAD_PATH):
     try:
