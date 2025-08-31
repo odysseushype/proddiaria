@@ -82,18 +82,18 @@ vel_path = os.path.join("relatorios", "static", "Velocidade.xlsx")
 # Caminho para salvar o arquivo enviado pela conta do deploy
 deploy_file_path = os.path.join("static", "registros.xlsx")
 
+# Caminho para salvar o arquivo enviado localmente
+local_file_path = "registros_local.xlsx"
+
 # Upload de arquivo pelo usuário
 if source == "Upload (Excel)":
     reg_file = st.sidebar.file_uploader("Upload: arquivo de registros (Excel)", type=["xls", "xlsx"])
     if reg_file is not None:
         try:
-            # Salvar o arquivo no disco
-            with open(deploy_file_path, "wb") as f:
-                f.write(reg_file.read())
-            st.sidebar.success("Arquivo de registros carregado e salvo com sucesso.")
-            
-            # Carregar os dados do arquivo enviado
-            df_user = pd.read_excel(deploy_file_path)
+            # Armazenar o arquivo no buffer
+            st.session_state["buffer"] = BytesIO(reg_file.read())
+            df_user = pd.read_excel(st.session_state["buffer"])  # Ler dados do buffer
+            st.sidebar.success("Arquivo de registros carregado e armazenado em buffer.")
             
             # Combinar dados iniciais com os dados do usuário
             if df is not None and not df.empty:
@@ -103,6 +103,20 @@ if source == "Upload (Excel)":
                 df = df_user
         except Exception as e:
             st.sidebar.error(f"Falha ao ler registros: {e}")
+    elif st.session_state["buffer"] is not None:
+        try:
+            # Reutilizar o buffer existente
+            df_user = pd.read_excel(st.session_state["buffer"])
+            st.sidebar.success("Dados carregados do buffer.")
+            
+            # Combinar dados iniciais com os dados do usuário
+            if df is not None and not df.empty:
+                df = pd.concat([df, df_user], ignore_index=True)
+                st.sidebar.success("Dados iniciais e do usuário combinados com sucesso.")
+            else:
+                df = df_user
+        except Exception as e:
+            st.sidebar.error(f"Falha ao reutilizar buffer: {e}")
 
 # Carregar o arquivo salvo automaticamente nos demais acessos
 elif os.path.exists(deploy_file_path):
