@@ -457,24 +457,42 @@ if not df.empty:
     resumo_turno = resumo_turno.merge(paradas_globais, on=["Centro Trabalho", "Turno", "DataProd"], how="left")
     resumo_turno["Paradas_min"] = resumo_turno["Paradas_min"].fillna(0)
     resumo_turno["Paradas_h"] = resumo_turno["Paradas_min"] / 60.0
-
+    
     # ADICIONE ESTE AJUSTE AQUI - Dobrar a velocidade padrão para CA12
     resumo_turno.loc[resumo_turno["Centro Trabalho"] == "CA12", "Vel_padrao_media"] *= 2
-
+    
+    # ADICIONE ESTA VERIFICAÇÃO - Garantir que não há velocidades zero
+    if (resumo_turno["Vel_padrao_media"] <= 0).any():
+        print("⚠️ ATENÇÃO: Encontradas velocidades padrão zeradas ou negativas!")
+        # Substituir por um valor padrão conservador (50000) para evitar divisões por zero
+        resumo_turno.loc[resumo_turno["Vel_padrao_media"] <= 0, "Vel_padrao_media"] = 50000
+    
     resumo_turno["Duracao_turno_h"] = resumo_turno.apply(
         lambda r: (intervalo_turno(r["DataProd"], r["Turno"], r["Centro Trabalho"])[1] -
                    intervalo_turno(r["DataProd"], r["Turno"], r["Centro Trabalho"])[0]).total_seconds() / 3600,
         axis=1
     )
-
+    
     resumo_turno["Tempo_liquido_h"] = (resumo_turno["Duracao_turno_h"] - resumo_turno["Paradas_h"]).clip(lower=0)
     resumo_turno["Prod_prevista"] = resumo_turno["Vel_padrao_media"] * resumo_turno["Tempo_liquido_h"]
     resumo_turno["Prod_deveria"] = resumo_turno["Prod_prevista"]
-    resumo_turno["Vel_real"] = resumo_turno["Produzido"] / resumo_turno["Tempo_liquido_h"].replace(0, np.nan)
-    resumo_turno["Eficiencia_%"] = (resumo_turno["Vel_real"] / resumo_turno["Vel_padrao_media"]) * 100
-
+    
+    # CORRIGIDO - Proteger contra divisão por zero
+    resumo_turno["Tempo_liquido_h_safe"] = resumo_turno["Tempo_liquido_h"].replace(0, np.nan)
+    resumo_turno["Vel_real"] = resumo_turno["Produzido"] / resumo_turno["Tempo_liquido_h_safe"]
+    
+    # CORRIGIDO - Proteger cálculo de eficiência
+    resumo_turno["Eficiencia_%"] = np.where(
+        (resumo_turno["Vel_padrao_media"] > 0) & (resumo_turno["Vel_real"].notna()),
+        (resumo_turno["Vel_real"] / resumo_turno["Vel_padrao_media"]) * 100,
+        np.nan
+    )
+    
+    # Limitação de valores extremos
+    resumo_turno["Eficiencia_%"] = resumo_turno["Eficiencia_%"].clip(lower=0, upper=999.99)
+    
     # ===== Cálculo de Eficiência e Produção Prevista =====
-
+    
     # Filtrar paradas obrigatórias
     paradas_obrigatorias = ["REFEIÇÕES", "ACERTO", "TESTE", "PRODUÇÃO INTERROMPIDA"]
     paradas_obrigatorias_df = (
@@ -483,27 +501,39 @@ if not df.empty:
         .sum()
         .reset_index(name="Paradas_obrigatorias_h")
     )
-
+    
     # Mesclar paradas obrigatórias ao resumo_turno
     resumo_turno = resumo_turno.merge(paradas_obrigatorias_df, on=["Centro Trabalho", "Turno", "DataProd"], how="left")
     resumo_turno["Paradas_obrigatorias_h"] = resumo_turno["Paradas_obrigatorias_h"].fillna(0)
-
+    
     # Recalcular tempo disponível máximo para produção
     resumo_turno["Tempo_disponivel_h"] = (resumo_turno["Duracao_turno_h"] - resumo_turno["Paradas_obrigatorias_h"]).clip(lower=0)
-
+    
     # Produção prevista ajustada (descontando apenas paradas obrigatórias)
     resumo_turno["Prod_prevista_ajustada"] = resumo_turno["Vel_padrao_media"] * resumo_turno["Tempo_disponivel_h"]
-
+    
     # ===== Cálculo de Eficiência Geral e Ajustada =====
-
-    # Eficiência geral (baseada na produção prevista geral)
-    resumo_turno["Eficiencia_geral_%"] = (resumo_turno["Produzido"] / resumo_turno["Prod_prevista"]) * 100
-
-    # Eficiência ajustada (baseada na produção prevista ajustada)
-    resumo_turno["Eficiencia_ajustada_%"] = (resumo_turno["Produzido"] / resumo_turno["Prod_prevista_ajustada"]) * 100
-
+    
+    # CORRIGIDO - Eficiência geral com proteção contra divisão por zero
+    resumo_turno["Eficiencia_geral_%"] = np.where(
+        resumo_turno["Prod_prevista"] > 0,
+        (resumo_turno["Produzido"] / resumo_turno["Prod_prevista"]) * 100,
+        np.nan
+    )
+    
+    # CORRIGIDO - Eficiência ajustada com proteção contra divisão por zero
+    resumo_turno["Eficiencia_ajustada_%"] = np.where(
+        resumo_turno["Prod_prevista_ajustada"] > 0,
+        (resumo_turno["Produzido"] / resumo_turno["Prod_prevista_ajustada"]) * 100,
+        np.nan
+    )
+    
+    # Limitação de valores extremos
+    resumo_turno["Eficiencia_geral_%"] = resumo_turno["Eficiencia_geral_%"].clip(lower=0, upper=999.99)
+    resumo_turno["Eficiencia_ajustada_%"] = resumo_turno["Eficiencia_ajustada_%"].clip(lower=0, upper=999.99)
+    
     # Produção prevista geral (considerando todas as paradas)
-    resumo_turno["Prod_prevista_geral"] = resumo_turno["Vel_padrao_media"] * resumo_turno["Tempo_liquido_h"]
+resumo_turno["Prod_prevista_geral"] = resumo_turno["Vel_padrao_media"] * resumo_turno["Tempo_liquido_h"]
 
     # ----------------- Renomear colunas para exibição (helper) -----------------
     COL_RENAMES = {
@@ -1209,6 +1239,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
