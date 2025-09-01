@@ -384,12 +384,38 @@ if not df.empty:
         .sum()
         .reset_index()
     )
+    # Antes do merge
+    # Garantir que os valores de Conc são strings e bem formatados
     vel.columns = vel.columns.str.strip()
     prod["Conc"] = prod["Conc"].astype(str).str.strip()
     vel["Conc"] = vel["Conc"].astype(str).str.strip()
+    
+    # Debug: verificar valores de Conc em cada DataFrame
     print("Conc em prod:", prod["Conc"].unique())
     print("Conc em vel:", vel["Conc"].unique())
+    
+    # Verificar se a coluna Velocidade Padrão existe
+    if "Velocidade Padrão" not in vel.columns:
+        st.warning("Coluna 'Velocidade Padrão' não encontrada na planilha. Disponíveis: " + ", ".join(vel.columns))
+        # Criar coluna padrão para evitar erro
+        vel["Velocidade Padrão"] = 0
+    
+    # Realizar o merge com logs
     prod = prod.merge(vel[["Conc", "Velocidade Padrão"]], on="Conc", how="left")
+    
+    # Verificar se houve valores nulos após o merge
+    missing_vel = prod["Velocidade Padrão"].isna().sum()
+    if missing_vel > 0:
+        st.warning(f"Atenção: {missing_vel} registros ficaram sem velocidade padrão após o merge.")
+        # Mostrar quais Conc não encontraram correspondência
+        missing_concs = prod[prod["Velocidade Padrão"].isna()]["Conc"].unique()
+        if len(missing_concs) <= 10:  # Limite para não sobrecarregar a UI
+            st.info(f"Conc sem correspondência: {', '.join(missing_concs)}")
+        else:
+            st.info(f"Há {len(missing_concs)} valores de Conc sem correspondência.")
+    
+    # Garantir tipo numérico para Velocidade Padrão
+    prod["Velocidade Padrão"] = pd.to_numeric(prod["Velocidade Padrão"], errors="coerce").fillna(0)
 
     # Criar DataFrame com os itens produzidos por centro e turno
     if not prod.empty and "Descrição Item" in prod.columns:
@@ -1170,6 +1196,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
