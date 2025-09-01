@@ -216,8 +216,8 @@ if not df.empty:
 
         if not registros_ca05_sem_roteiro.empty:
             itens_unicos = {}
-                for _, row in registros_ca05_sem_roteiro.iterrows():
-                    item = row["Descrição Item"]
+            for _, row in registros_ca05_sem_roteiro.iterrows():
+                item = row["Descrição Item"]
     
                 # Converte o valor de Qtd Aprovada para número, com segurança
                 try:
@@ -1159,6 +1159,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
