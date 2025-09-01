@@ -213,21 +213,23 @@ if not df.empty:
             (df["Centro Trabalho"] == "CA05") & 
             (df["Roteiro"].isna() | (df["Roteiro"] == ""))
         ]
-         df.columns = df.columns.str.strip()  # Remove espaços invisíveis dos nomes
-         df["Qtd Aprovada"] = pd.to_numeric(df["Qtd Aprovada"], errors="coerce")
-        print(df["Qtd Aprovada"].dtype)
 
-        # Processar CA05
-       # Processar CA05 
-        if not registros_ca05_sem_roteiro.empty: # Agrupar por Descrição Item para encontrar a primeira Qtd Aprovada de cada item 
-            itens_unicos = {} 
-            for _, row in registros_ca05_sem_roteiro.iterrows(): 
-                item = row["Descrição Item"] 
-                if item not in itens_unicos and not pd.isna(row["Qtd Aprovada"]): 
-                    itens_unicos[item] = { 
-                        "qtd": row["Qtd Aprovada"], 
-                        "roteiro": "RAPIDO" if row["Qtd Aprovada"] <= 18000 else "LENTO",
-                        "velocidade": 50000 if row["Qtd Aprovada"] <= 18000 else 70000
+        if not registros_ca05_sem_roteiro.empty:
+            itens_unicos = {}
+                for _, row in registros_ca05_sem_roteiro.iterrows():
+                    item = row["Descrição Item"]
+    
+                # Converte o valor de Qtd Aprovada para número, com segurança
+                try:
+                    qtd_aprovada = float(row["Qtd Aprovada"])
+                except (ValueError, TypeError):
+                    continue  # pula se não for possível converter
+        
+                if item not in itens_unicos:
+                    itens_unicos[item] = {
+                        "qtd": qtd_aprovada,
+                        "roteiro": "RAPIDO" if qtd_aprovada <= 18000 else "LENTO",
+                        "velocidade": 50000 if qtd_aprovada <= 18000 else 70000
                     }
             # Atribuir roteiros e atualizar o DataFrame
             for item, info in itens_unicos.items():
@@ -1157,6 +1159,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
