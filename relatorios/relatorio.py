@@ -449,10 +449,10 @@ if not df.empty:
         if resumo_turno["Vel_padrao_media"].isna().any():
             st.warning("Alguns centros/turnos ficaram sem velocidade padrão média")
     except Exception as e:
-    st.error(f"Erro ao agrupar por centro e turno: {str(e)}")
-    # Criar um resumo_turno vazio para evitar erros posteriores
-    resumo_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "DataProd", 
-                                        "Produzido", "Vel_padrao_media"])
+        st.error(f"Erro ao agrupar por centro e turno: {str(e)}")
+        # Criar um resumo_turno vazio para evitar erros posteriores
+        resumo_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "DataProd", 
+                                            "Produzido", "Vel_padrao_media"])
 
     resumo_turno = resumo_turno.merge(paradas_globais, on=["Centro Trabalho", "Turno", "DataProd"], how="left")
     resumo_turno["Paradas_min"] = resumo_turno["Paradas_min"].fillna(0)
@@ -1209,6 +1209,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
