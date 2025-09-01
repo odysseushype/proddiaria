@@ -213,7 +213,10 @@ if not df.empty:
             (df["Centro Trabalho"] == "CA05") & 
             (df["Roteiro"].isna() | (df["Roteiro"] == ""))
         ]
-       df["Qtd Aprovada"] = pd.to_numeric(df["Qtd Aprovada"], errors="coerce")
+         df.columns = df.columns.str.strip()  # Remove espaços invisíveis dos nomes
+         df["Qtd Aprovada"] = pd.to_numeric(df["Qtd Aprovada"], errors="coerce")
+        print(df["Qtd Aprovada"].dtype)
+
         # Processar CA05
        # Processar CA05 
         if not registros_ca05_sem_roteiro.empty: # Agrupar por Descrição Item para encontrar a primeira Qtd Aprovada de cada item 
@@ -1154,6 +1157,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
