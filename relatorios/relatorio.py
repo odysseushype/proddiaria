@@ -404,7 +404,6 @@ if not df.empty:
 
     # Forçar conversão de colunas para tipo numérico
     prod["Qtd Aprovada"] = pd.to_numeric(prod["Qtd Aprovada"], errors="coerce")
-    prod["Velocidade Padrão"] = pd.to_numeric(prod["Velocidade Padrão"], errors="coerce")
 
     resumo_turno = prod.groupby(["Centro Trabalho", "Turno", "DataProd"]).agg(
         Produzido=("Qtd Aprovada", "sum"),
@@ -1166,6 +1165,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
