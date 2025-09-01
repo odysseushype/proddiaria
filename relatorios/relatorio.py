@@ -256,6 +256,7 @@ if not df.empty:
             roteiros_atribuidos += len(itens_unicos)
             
         # ----- Regra 2: CA04 e CA16 (Pre Vincagem) -----
+# ----- Regra 2: CA04 e CA16 (Pre Vincagem) -----
         # CA04 - Pre Vincagem - 60000
         mask_ca04 = (
             (df["Centro Trabalho"] == "CA04") & 
@@ -272,6 +273,25 @@ if not df.empty:
                 })
                 vel = pd.concat([vel, nova_vel], ignore_index=True)
             roteiros_atribuidos += mask_ca04.sum()
+            
+        # CA04 - Aplic Ink-Jet / Pré-Vincagem - velocidade padrão * 2
+        mask_ca04_inkjet = (
+            (df["Centro Trabalho"] == "CA04") & 
+            (df["Descrição Operação"] == "Aplic Ink-Jet / Pré-Vincagem") &
+            (df["Roteiro"].isna() | (df["Roteiro"] == ""))
+        )
+        if mask_ca04_inkjet.any():
+            df.loc[mask_ca04_inkjet, "Roteiro"] = "INKJET_PREVINCAGEM"
+            df.loc[mask_ca04_inkjet, "Conc"] = "CA04-INKJET_PREVINCAGEM"
+            if "CA04-INKJET_PREVINCAGEM" not in vel["Conc"].values:
+                # Usando a mesma base de CA04-PREVINCAGEM, mas multiplicando por 2
+                velocidade_base = 120000  # Velocidade padrão do CA04-PREVINCAGEM
+                nova_vel = pd.DataFrame({
+                    "Conc": ["CA04-INKJET_PREVINCAGEM"],
+                    "Velocidade Padrão": [velocidade_base * 2]  # Multiplicando por 2
+                })
+                vel = pd.concat([vel, nova_vel], ignore_index=True)
+            roteiros_atribuidos += mask_ca04_inkjet.sum()
         
         # CA16 - Pre Vincagem - 50000*2 = 100000
         mask_ca16 = (
@@ -1257,6 +1277,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
