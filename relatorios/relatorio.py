@@ -430,16 +430,29 @@ if not df.empty:
     else:
         itens_por_centro_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "Descrição Item"])
 
-    # Remover espaços de colunas, por segurança
-    prod.columns = prod.columns.str.strip()
+    # Antes de agrupar, garantir tipos numéricos
+    prod["Qtd Aprovada"] = pd.to_numeric(prod["Qtd Aprovada"], errors="coerce").fillna(0)
+    prod["Velocidade Padrão"] = pd.to_numeric(prod["Velocidade Padrão"], errors="coerce").fillna(0)
+    
+    # Debug: verificar se a coluna existe e tem valores
+    print("Coluna Velocidade Padrão existe:", "Velocidade Padrão" in prod.columns)
+    print("Valores em Velocidade Padrão:", prod["Velocidade Padrão"].describe())
 
-    # Forçar conversão de colunas para tipo numérico
-    prod["Qtd Aprovada"] = pd.to_numeric(prod["Qtd Aprovada"], errors="coerce")
-
-    resumo_turno = prod.groupby(["Centro Trabalho", "Turno", "DataProd"]).agg(
-        Produzido=("Qtd Aprovada", "sum"),
-        Vel_padrao_media=("Velocidade Padrão", "mean")
-    ).reset_index()
+    # Agrupamento com verificação de erros
+    try:
+        resumo_turno = prod.groupby(["Centro Trabalho", "Turno", "DataProd"]).agg(
+            Produzido=("Qtd Aprovada", "sum"),
+            Vel_padrao_media=("Velocidade Padrão", "mean")
+        ).reset_index()
+    
+    # Verificar se o resultado contém NaN
+    if resumo_turno["Vel_padrao_media"].isna().any():
+        st.warning("Alguns centros/turnos ficaram sem velocidade padrão média")
+        except Exception as e:
+    st.error(f"Erro ao agrupar por centro e turno: {str(e)}")
+    # Criar um resumo_turno vazio para evitar erros posteriores
+    resumo_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "DataProd", 
+                                        "Produzido", "Vel_padrao_media"])
 
     resumo_turno = resumo_turno.merge(paradas_globais, on=["Centro Trabalho", "Turno", "DataProd"], how="left")
     resumo_turno["Paradas_min"] = resumo_turno["Paradas_min"].fillna(0)
@@ -1196,6 +1209,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
