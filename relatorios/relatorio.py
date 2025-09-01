@@ -399,6 +399,13 @@ if not df.empty:
     else:
         itens_por_centro_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "Descrição Item"])
 
+    # Remover espaços de colunas, por segurança
+    prod.columns = prod.columns.str.strip()
+
+    # Forçar conversão de colunas para tipo numérico
+    prod["Qtd Aprovada"] = pd.to_numeric(prod["Qtd Aprovada"], errors="coerce")
+    prod["Velocidade Padrão"] = pd.to_numeric(prod["Velocidade Padrão"], errors="coerce")
+
     resumo_turno = prod.groupby(["Centro Trabalho", "Turno", "DataProd"]).agg(
         Produzido=("Qtd Aprovada", "sum"),
         Vel_padrao_media=("Velocidade Padrão", "mean")
@@ -1159,6 +1166,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
