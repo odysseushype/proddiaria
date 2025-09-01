@@ -216,7 +216,6 @@ if not df.empty:
         
         # Processar CA05
        # Processar CA05 
-        qtd_aprovada = pd.to_numeric(row["Qtd Aprovada"], errors="coerce")
         if not registros_ca05_sem_roteiro.empty: # Agrupar por Descrição Item para encontrar a primeira Qtd Aprovada de cada item 
             itens_unicos = {} 
             for _, row in registros_ca05_sem_roteiro.iterrows(): 
@@ -224,7 +223,7 @@ if not df.empty:
                 if item not in itens_unicos and not pd.isna(row["Qtd Aprovada"]): 
                     itens_unicos[item] = { 
                         "qtd": row["Qtd Aprovada"], 
-                        "roteiro": "RAPIDO" if qtd_aprovada <= 18000 else "LENTO", 
+                        "roteiro": "RAPIDO" if row["Qtd Aprovada"] <= 18000 else "LENTO",
                         "velocidade": 50000 if row["Qtd Aprovada"] <= 18000 else 70000
                     }
             # Atribuir roteiros e atualizar o DataFrame
@@ -1155,5 +1154,6 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
