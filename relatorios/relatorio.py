@@ -285,7 +285,7 @@ if not df.empty:
             df.loc[mask_ca04_inkjet, "Conc"] = "CA04-INKJET_PREVINCAGEM"
             if "CA04-INKJET_PREVINCAGEM" not in vel["Conc"].values:
                 # Usando a mesma base de CA04-PREVINCAGEM, mas multiplicando por 2
-                velocidade_base = 120000  # Velocidade padrão do CA04-PREVINCAGEM
+                velocidade_base = 30000  # Velocidade padrão do CA04-PREVINCAGEM
                 nova_vel = pd.DataFrame({
                     "Conc": ["CA04-INKJET_PREVINCAGEM"],
                     "Velocidade Padrão": [velocidade_base * 2]  # Multiplicando por 2
@@ -1277,6 +1277,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
