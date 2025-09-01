@@ -384,6 +384,11 @@ if not df.empty:
         .sum()
         .reset_index()
     )
+    vel.columns = vel.columns.str.strip()
+    prod["Conc"] = prod["Conc"].astype(str).str.strip()
+    vel["Conc"] = vel["Conc"].astype(str).str.strip()
+    print("Conc em prod:", prod["Conc"].unique())
+    print("Conc em vel:", vel["Conc"].unique())
     prod = prod.merge(vel[["Conc", "Velocidade Padrão"]], on="Conc", how="left")
 
     # Criar DataFrame com os itens produzidos por centro e turno
@@ -1165,6 +1170,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
