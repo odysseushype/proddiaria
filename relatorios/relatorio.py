@@ -533,7 +533,7 @@ if not df.empty:
     resumo_turno["Eficiencia_ajustada_%"] = resumo_turno["Eficiencia_ajustada_%"].clip(lower=0, upper=999.99)
     
     # Produção prevista geral (considerando todas as paradas)
-resumo_turno["Prod_prevista_geral"] = resumo_turno["Vel_padrao_media"] * resumo_turno["Tempo_liquido_h"]
+    resumo_turno["Prod_prevista_geral"] = resumo_turno["Vel_padrao_media"] * resumo_turno["Tempo_liquido_h"]
 
     # ----------------- Renomear colunas para exibição (helper) -----------------
     COL_RENAMES = {
@@ -1239,6 +1239,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
