@@ -194,6 +194,7 @@ if not df.empty:
         - CA16: Operação "Pre Vincagem" - velocidade 100000 (50000*2)
         - CA15: Operação "Aplic Ink-Jet / Colagem" - velocidade 10000
         - CA09: Qualquer operação diferente de "Colagem" - velocidade 12000
+        - CA01: Qualquer operação com roteiro vazio - velocidade 9000
         
         Args:
             df: DataFrame principal com registros de produção
@@ -1255,6 +1256,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
