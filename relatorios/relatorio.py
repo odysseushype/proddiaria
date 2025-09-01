@@ -322,7 +322,22 @@ if not df.empty:
                 })
                 vel = pd.concat([vel, nova_vel], ignore_index=True)
             roteiros_atribuidos += mask_ca09.sum()
-        
+            
+         mask_ca01 = (
+            (df["Centro Trabalho"] == "CA01") & 
+            (df["Roteiro"].isna() | (df["Roteiro"] == ""))
+        )
+        if mask_ca01.any():
+            df.loc[mask_ca01, "Roteiro"] = "GERAL"
+            df.loc[mask_ca01, "Conc"] = "CA01-GERAL"
+            if "CA01-GERAL" not in vel["Conc"].values:
+                nova_vel = pd.DataFrame({
+                    "Conc": ["CA01-GERAL"],
+                    "Velocidade Padrão": [9000]
+                })
+                vel = pd.concat([vel, nova_vel], ignore_index=True)
+            roteiros_atribuidos += mask_ca01.sum()
+            
         if roteiros_atribuidos > 0:
             st.success(f"Roteiros atribuídos para {roteiros_atribuidos} registros sem roteiro definido")
         
@@ -464,8 +479,9 @@ if not df.empty:
     # ADICIONE ESTA VERIFICAÇÃO - Garantir que não há velocidades zero
     if (resumo_turno["Vel_padrao_media"] <= 0).any():
         print("⚠️ ATENÇÃO: Encontradas velocidades padrão zeradas ou negativas!")
-        # Substituir por um valor padrão conservador (50000) para evitar divisões por zero
-        resumo_turno.loc[resumo_turno["Vel_padrao_media"] <= 0, "Vel_padrao_media"] = 50000
+        # Substituir por um valor padrão conservador (20000) para evitar divisões por zero
+        resumo_turno.loc[resumo_turno["Vel_padrao_media"] <= 0, "Vel_padrao_media"] = 20000
+        
     
     resumo_turno["Duracao_turno_h"] = resumo_turno.apply(
         lambda r: (intervalo_turno(r["DataProd"], r["Turno"], r["Centro Trabalho"])[1] -
@@ -1239,6 +1255,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
