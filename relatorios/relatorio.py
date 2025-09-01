@@ -445,10 +445,10 @@ if not df.empty:
             Vel_padrao_media=("Velocidade Padrão", "mean")
         ).reset_index()
     
-    # Verificar se o resultado contém NaN
-    if resumo_turno["Vel_padrao_media"].isna().any():
-        st.warning("Alguns centros/turnos ficaram sem velocidade padrão média")
-        except Exception as e:
+        # Verificar se o resultado contém NaN
+        if resumo_turno["Vel_padrao_media"].isna().any():
+            st.warning("Alguns centros/turnos ficaram sem velocidade padrão média")
+    except Exception as e:
     st.error(f"Erro ao agrupar por centro e turno: {str(e)}")
     # Criar um resumo_turno vazio para evitar erros posteriores
     resumo_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "DataProd", 
@@ -1209,6 +1209,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
