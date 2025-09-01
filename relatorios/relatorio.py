@@ -323,11 +323,8 @@ if not df.empty:
                 })
                 vel = pd.concat([vel, nova_vel], ignore_index=True)
             roteiros_atribuidos += mask_ca09.sum()
-            
-         mask_ca01 = (
-            (df["Centro Trabalho"] == "CA01") & 
-            (df["Roteiro"].isna() | (df["Roteiro"] == ""))
-        )
+        
+        # ----- Regra 5: CA01 (Roteiro vazio) - velocidade 9000 -----
         mask_ca01 = (
             (df["Centro Trabalho"] == "CA01") & 
             (df["Roteiro"].isna() | (df["Roteiro"] == ""))
@@ -1260,6 +1257,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
