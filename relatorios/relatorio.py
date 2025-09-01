@@ -328,6 +328,10 @@ if not df.empty:
             (df["Centro Trabalho"] == "CA01") & 
             (df["Roteiro"].isna() | (df["Roteiro"] == ""))
         )
+        mask_ca01 = (
+            (df["Centro Trabalho"] == "CA01") & 
+            (df["Roteiro"].isna() | (df["Roteiro"] == ""))
+        )
         if mask_ca01.any():
             df.loc[mask_ca01, "Roteiro"] = "GERAL"
             df.loc[mask_ca01, "Conc"] = "CA01-GERAL"
@@ -1256,6 +1260,7 @@ with tab2:
     else:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
+
 
 
 
