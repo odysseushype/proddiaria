@@ -413,67 +413,89 @@ if not df.empty:
 
     paradas_detalhe["Parada_h"] = paradas_detalhe["Parada_min"] / 60.0
     paradas_detalhe["Parada_fmt"] = paradas_detalhe["Parada_h"].apply(horas_para_hhmm)
+   
+    # Garantir que Qtd Aprovada seja numérica antes do agrupamento
+    df["Qtd Aprovada"] = pd.to_numeric(df["Qtd Aprovada"], errors="coerce").fillna(0)
 
-    # Atualizar criação do DataFrame `prod` para incluir `DataHoraFim`
+    # Calcular produção por centro, turno e data
     prod = (
         df[df["Tipo Registro"] == "Reporte de Produção"]
-        .groupby(["Centro Trabalho", "Turno", "DataProd", "Conc", "Descrição Item", "DataHoraInicio", "DataHoraFim"])["Qtd Aprovada"]
+        .groupby(["Centro Trabalho", "Turno", "DataProd"], as_index=False)["Qtd Aprovada"]
         .sum()
+    )
+
+    # Preparar velocidades - primeiro agregando todos os roteiros por centro
+    # Obter combinações únicas e válidas de Centro-Roteiro
+    roteiros_validos = df[
+        (df["Centro Trabalho"].notna()) & 
+        (df["Roteiro"].notna()) & 
+        (df["Centro Trabalho"] != "") & 
+        (df["Roteiro"] != "")
+    ][["Centro Trabalho", "Roteiro"]].drop_duplicates()
+
+    # Criar a coluna Conc para cada combinação válida
+    roteiros_validos["Conc"] = roteiros_validos["Centro Trabalho"].astype(str).str.strip() + "-" + roteiros_validos["Roteiro"].astype(str).str.strip()
+
+    # Calcular velocidade média para cada centro de trabalho
+    if not vel.empty and "Velocidade Padrão" in vel.columns:
+        # Preparar dados para merge
+        vel["Conc"] = vel["Conc"].astype(str).str.strip()
+        
+        # Mesclar roteiros com velocidades
+        roteiros_velocidades = roteiros_validos.merge(vel[["Conc", "Velocidade Padrão"]], on="Conc", how="left")
+        
+        # Verificar valores numéricos
+        roteiros_velocidades["Velocidade Padrão"] = pd.to_numeric(roteiros_velocidades["Velocidade Padrão"], errors="coerce")
+        
+        # Calcular média por centro
+        centro_velocidades = roteiros_velocidades.groupby("Centro Trabalho")["Velocidade Padrão"].mean().reset_index()
+        
+        # Depuração - mostrar as velocidades calculadas
+        print("\n=== Velocidades médias por centro de trabalho ===")
+        print(centro_velocidades)
+    else:
+        # Criar um DataFrame vazio se não houver dados de velocidade
+        centro_velocidades = pd.DataFrame({"Centro Trabalho": [], "Velocidade Padrão": []})
+        st.warning("Planilha de velocidades não disponível ou não contém dados válidos")
+
+    # Tratar valores faltantes e zeros
+    centro_velocidades.loc[centro_velocidades["Velocidade Padrão"].isna(), "Velocidade Padrão"] = 20000  # Valor padrão
+    centro_velocidades.loc[centro_velocidades["Velocidade Padrão"] <= 0, "Velocidade Padrão"] = 20000    # Valor padrão
+
+    # Mesclar velocidades médias com prod
+    prod = prod.merge(centro_velocidades, on="Centro Trabalho", how="left")
+
+    # Garantir que todos os centros tenham velocidades
+    if prod["Velocidade Padrão"].isna().any():
+        st.warning(f"{prod['Velocidade Padrão'].isna().sum()} centros sem velocidade padrão. Usando valor padrão.")
+        prod.loc[prod["Velocidade Padrão"].isna(), "Velocidade Padrão"] = 20000
+
+
+    # Verificação final
+    print("\n=== Velocidades finais por centro (após ajustes) ===")
+    print(prod.groupby("Centro Trabalho")["Velocidade Padrão"].mean())
+    
+    # Criar DataFrame com os itens produzidos por centro e turno
+    # Este DataFrame deve vir do df original, não do prod já agrupado
+    itens_por_centro_turno = (
+        df[df["Tipo Registro"] == "Reporte de Produção"]
+        [["Centro Trabalho", "Turno", "DataProd", "Descrição Item"]]
+        .dropna(subset=["Descrição Item"])  # Remover linhas sem descrição
+        .drop_duplicates()  # Remover duplicatas
+        .groupby(["Centro Trabalho", "Turno", "DataProd"])["Descrição Item"]
+        .apply(list)
         .reset_index()
     )
-    # Antes do merge
-    # Garantir que os valores de Conc são strings e bem formatados
-    vel.columns = vel.columns.str.strip()
-    prod["Conc"] = prod["Conc"].astype(str).str.strip()
-    vel["Conc"] = vel["Conc"].astype(str).str.strip()
-    
-    # Debug: verificar valores de Conc em cada DataFrame
-    print("Conc em prod:", prod["Conc"].unique())
-    print("Conc em vel:", vel["Conc"].unique())
-    
-    # Verificar se a coluna Velocidade Padrão existe
-    if "Velocidade Padrão" not in vel.columns:
-        st.warning("Coluna 'Velocidade Padrão' não encontrada na planilha. Disponíveis: " + ", ".join(vel.columns))
-        # Criar coluna padrão para evitar erro
-        vel["Velocidade Padrão"] = 0
-    
-    # Realizar o merge com logs
-    prod = prod.merge(vel[["Conc", "Velocidade Padrão"]], on="Conc", how="left")
-    
-    # Verificar se houve valores nulos após o merge
-    missing_vel = prod["Velocidade Padrão"].isna().sum()
-    if missing_vel > 0:
-        st.warning(f"Atenção: {missing_vel} registros ficaram sem velocidade padrão após o merge.")
-        # Mostrar quais Conc não encontraram correspondência
-        missing_concs = prod[prod["Velocidade Padrão"].isna()]["Conc"].unique()
-        if len(missing_concs) <= 10:  # Limite para não sobrecarregar a UI
-            st.info(f"Conc sem correspondência: {', '.join(missing_concs)}")
-        else:
-            st.info(f"Há {len(missing_concs)} valores de Conc sem correspondência.")
-    
-    # Garantir tipo numérico para Velocidade Padrão
-    prod["Velocidade Padrão"] = pd.to_numeric(prod["Velocidade Padrão"], errors="coerce").fillna(0)
 
-    # Criar DataFrame com os itens produzidos por centro e turno
-    if not prod.empty and "Descrição Item" in prod.columns:
-        itens_por_centro_turno = (
-            prod[["Centro Trabalho", "Turno", "DataProd", "Descrição Item"]]
-            .drop_duplicates()
-            .groupby(["Centro Trabalho", "Turno", "DataProd"])
-            ["Descrição Item"]
-            .apply(list)
-            .reset_index()
-        )
-    else:
-        itens_por_centro_turno = pd.DataFrame(columns=["Centro Trabalho", "Turno", "Descrição Item"])
+    # Depuração: verificar o conteúdo
+    print(f"Número de itens por centro/turno: {len(itens_por_centro_turno)}")
+    if not itens_por_centro_turno.empty:
+        print(f"Exemplo: {itens_por_centro_turno.iloc[0]}")
 
     # Antes de agrupar, garantir tipos numéricos
     prod["Qtd Aprovada"] = pd.to_numeric(prod["Qtd Aprovada"], errors="coerce").fillna(0)
     prod["Velocidade Padrão"] = pd.to_numeric(prod["Velocidade Padrão"], errors="coerce").fillna(0)
     
-    # Debug: verificar se a coluna existe e tem valores
-    print("Coluna Velocidade Padrão existe:", "Velocidade Padrão" in prod.columns)
-    print("Valores em Velocidade Padrão:", prod["Velocidade Padrão"].describe())
 
     # Agrupamento com verificação de erros
     try:
@@ -1278,13 +1300,80 @@ with tab2:
 
         st.info("Nenhum dado disponível para gráficos detalhados.")
 
+# 1. Calcular tempo de produção para cada registro
+df_producao = df[df["Tipo Registro"] == "Reporte de Produção"].copy()
+df_producao["Tempo_Horas"] = 0  # Valor padrão
 
+# Calcular tempo de produção em horas onde possível
+mask_tempos_validos = df_producao["DataHoraInicio"].notna() & df_producao["DataHoraFim"].notna()
+if mask_tempos_validos.any():
+    df_producao.loc[mask_tempos_validos, "Tempo_Horas"] = (
+        (df_producao.loc[mask_tempos_validos, "DataHoraFim"] - 
+         df_producao.loc[mask_tempos_validos, "DataHoraInicio"]).dt.total_seconds() / 3600
+    )
 
+# Limpar tempos inválidos (negativos ou muito grandes)
+df_producao.loc[df_producao["Tempo_Horas"] < 0, "Tempo_Horas"] = 0
+df_producao.loc[df_producao["Tempo_Horas"] > 24, "Tempo_Horas"] = 8  # Default para registros com tempos absurdos
 
+# 2. Criar a coluna Conc para cada registro
+df_producao["Conc"] = df_producao["Centro Trabalho"].astype(str).str.strip() + "-" + df_producao["Roteiro"].astype(str).str.strip()
 
+# 3. Mesclar com as velocidades padrão
+df_producao = df_producao.merge(vel[["Conc", "Velocidade Padrão"]], on="Conc", how="left")
 
+# 4. Agrupar por centro e calcular média ponderada
+tempo_total_por_centro = df_producao.groupby("Centro Trabalho")["Tempo_Horas"].sum().reset_index()
+velocidade_ponderada = (
+    df_producao.groupby("Centro Trabalho")
+    .apply(lambda x: (x["Velocidade Padrão"] * x["Tempo_Horas"]).sum() / x["Tempo_Horas"].sum() if x["Tempo_Horas"].sum() > 0 else 0)
+    .reset_index(name="Velocidade Padrão")
+)
 
+# 5. Tratar valores faltantes ou inválidos
+velocidade_ponderada.loc[velocidade_ponderada["Velocidade Padrão"].isna(), "Velocidade Padrão"] = 20000
+velocidade_ponderada.loc[velocidade_ponderada["Velocidade Padrão"] <= 0, "Velocidade Padrão"] = 20000
 
+# 6. Mesclar com o DataFrame de produção
+prod = prod.merge(velocidade_ponderada, on="Centro Trabalho", how="left")
+
+# Calcular velocidade ponderada pela frequência de uso do roteiro
+freq_roteiros = (
+    df[df["Tipo Registro"] == "Reporte de Produção"]
+    .groupby(["Centro Trabalho", "Turno", "DataProd", "Roteiro"])
+    .size()
+    .reset_index(name="Frequencia")
+)
+
+# Criar coluna Conc
+freq_roteiros["Conc"] = freq_roteiros["Centro Trabalho"].astype(str).str.strip() + "-" + freq_roteiros["Roteiro"].astype(str).str.strip()
+
+# Mesclar com velocidades
+freq_roteiros = freq_roteiros.merge(vel[["Conc", "Velocidade Padrão"]], on="Conc", how="left")
+
+# Tratar valores inválidos
+freq_roteiros["Velocidade Padrão"] = pd.to_numeric(freq_roteiros["Velocidade Padrão"], errors="coerce").fillna(20000)
+freq_roteiros.loc[freq_roteiros["Velocidade Padrão"] <= 0, "Velocidade Padrão"] = 20000
+
+# Calcular velocidade ponderada por centro, turno e data
+velocidade_ponderada = (
+    freq_roteiros
+    .groupby(["Centro Trabalho", "Turno", "DataProd"])
+    .apply(lambda x: (x["Velocidade Padrão"] * x["Frequencia"]).sum() / x["Frequencia"].sum())
+    .reset_index(name="Vel_ponderada")
+)
+
+# Mesclar com prod
+prod = prod.merge(velocidade_ponderada, on=["Centro Trabalho", "Turno", "DataProd"], how="left")
+
+# Tratar valores ausentes na velocidade ponderada
+prod["Vel_ponderada"].fillna(prod["Velocidade Padrão"], inplace=True)
+
+# Código antigo (exemplo)
+# eficiencia = df_turno["Produzido"].iloc[0] / (df_turno["Velocidade Padrão"].iloc[0] * df_turno["Horas"].iloc[0]) * 100
+
+# Substitua por:
+eficiencia = df_turno["Produzido"].iloc[0] / (df_turno["Vel_ponderada"].iloc[0] * df_turno["Horas"].iloc[0]) * 100
 
 
 
